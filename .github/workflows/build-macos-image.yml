@@ -141,6 +141,23 @@ jobs:
           sanitized_tag=$(printf '%s' "$RAW_TAG" | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
           echo "sanitized_tag=$sanitized_tag" >> $GITHUB_OUTPUT
 
+      - name: Compress and Split Image
+        id: compress_image
+        run: |
+          IMAGE_NAME="${{ steps.create_image.outputs.image_name }}"
+          ZIP_FILE="macos_full_image.zip"
+          
+          echo "Compressing and splitting into ~1.9GB chunks..."
+          # -s 1900m делит архив на части по 1.9 ГБ (чтобы точно пролезть под лимит GitHub в 2 ГБ)
+          zip -s 1900m -j "$ZIP_FILE" "$IMAGE_NAME"
+          
+          echo "Generated parts:"
+          ls -la macos_full_image*
+          
+          # Передаем список всех созданных частей (например, .zip, .z01, .z02...) в переменную
+          # gh release create умеет принимать несколько файлов через пробел или маску
+          echo "zip_pattern=macos_full_image*" >> $GITHUB_OUTPUT
+
       - name: Create Release
         if: github.event.inputs.release_tag != ''
         env:
@@ -148,13 +165,13 @@ jobs:
           MACOS_VERSION: ${{ inputs.macos_version }}
           IMAGE_FORMAT: ${{ inputs.image_format }}
           TAG: ${{ steps.sanitize_tag.outputs.sanitized_tag }}
-          ASSET: ${{ steps.create_image.outputs.image_name }}
+          ASSETS: ${{ steps.compress_image.outputs.zip_pattern }}
         continue-on-error: true
         run: |
           FORMAT_UPPER=$(echo "$IMAGE_FORMAT" | tr '[:lower:]' '[:upper:]')
           gh release create "$TAG" \
             --title "macOS ${MACOS_VERSION} Full (${FORMAT_UPPER})" \
-            "$ASSET"
+            $ASSETS
             
       - name: Summary
         if: always()
