@@ -151,8 +151,9 @@ jobs:
           ASSET: ${{ steps.create_image.outputs.image_name }}
         continue-on-error: true
         run: |
+          FORMAT_UPPER=$(echo "$IMAGE_FORMAT" | tr '[:lower:]' '[:upper:]')
           gh release create "$TAG" \
-            --title "macOS ${MACOS_VERSION} Full (${IMAGE_FORMAT^^})" \
+            --title "macOS ${MACOS_VERSION} Full (${FORMAT_UPPER})" \
             "$ASSET"
             
       - name: Summary
