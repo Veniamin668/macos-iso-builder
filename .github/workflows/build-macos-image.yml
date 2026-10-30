@@ -33,6 +33,10 @@ on:
           - 'iso'
           - 'dmg'
 
+      release_tag:
+        description: 'Optional: tag the build (e.g., v15.0) to upload it to Releases for long-term storage'
+        required: false
+        type: string
 jobs:
   preflight:
     if: ${{ inputs.macos_version != '' && inputs.image_format != '' }}
@@ -128,6 +132,29 @@ jobs:
           retention-days: 15
           archive: false
 
+      - name: Sanitize release tag
+        id: sanitize_tag
+        if: github.event.inputs.release_tag != ''
+        env:
+          RAW_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          sanitized_tag=$(printf '%s' "$RAW_TAG" | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+          echo "sanitized_tag=$sanitized_tag" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        if: github.event.inputs.release_tag != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MACOS_VERSION: ${{ inputs.macos_version }}
+          IMAGE_FORMAT: ${{ inputs.image_format }}
+          TAG: ${{ steps.sanitize_tag.outputs.sanitized_tag }}
+          ASSET: ${{ steps.create_image.outputs.image_path }}
+        continue-on-error: true
+        run: |
+          gh release create "$TAG" \
+            --title "macOS ${MACOS_VERSION} Full (${IMAGE_FORMAT^^})" \
+            "$ASSET"
+            
       - name: Summary
         if: always()
         run: |
