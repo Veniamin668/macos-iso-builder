@@ -148,7 +148,7 @@ jobs:
           MACOS_VERSION: ${{ inputs.macos_version }}
           IMAGE_FORMAT: ${{ inputs.image_format }}
           TAG: ${{ steps.sanitize_tag.outputs.sanitized_tag }}
-          ASSET: ${{ steps.create_image.outputs.image_path }}
+          ASSET: ${{ steps.create_image.outputs.image_name }}
         continue-on-error: true
         run: |
           gh release create "$TAG" \
